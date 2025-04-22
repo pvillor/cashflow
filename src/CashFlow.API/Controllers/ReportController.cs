@@ -1,12 +1,15 @@
 ﻿using System.Net.Mime;
 using CashFlow.Application.UseCases.Expenses.Reports.Excel;
 using CashFlow.Application.UseCases.Expenses.Reports.Pdf;
+using CashFlow.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CashFlow.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(Roles = Roles.ADMIN)]
 public class ReportController : ControllerBase
 {
     [HttpGet("excel")]
@@ -14,7 +17,7 @@ public class ReportController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> GetExcel(
         [FromServices] IGenerateExpensesReportExcelUseCase useCase,
-        [FromHeader] DateOnly month)
+        [FromQuery] DateOnly month)
     {
         byte[] file = await useCase.Execute(month);
 
@@ -29,7 +32,7 @@ public class ReportController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> GetPdf(
         [FromServices] IGenerateExpensesReportPdfUseCase useCase,
-        [FromHeader] DateOnly month)
+        [FromQuery] DateOnly month)
     {
         byte[] file = await useCase.Execute(month);
 

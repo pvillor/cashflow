@@ -4,9 +4,9 @@ using CashFlow.Exception;
 using CommonTestUtilities.Requests;
 using FluentAssertions;
 
-namespace Validators.Tests.Expenses.Register;
+namespace Validators.Tests.Expenses;
 
-public class RegisterExpenseValidatorTests
+public class ExpenseValidatorTests
 {
     [Fact]
     public void Success()
@@ -32,12 +32,12 @@ public class RegisterExpenseValidatorTests
         var result = validator.Validate(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals(ResourceErrorMessages.TITLE_REQUIRED));
+        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals("Title is required"));
     }
 
     [Fact]
     public void ErrorDateFuture()
-    { 
+    {
         var validator = new ExpenseValidator();
         var request = RequestRegisterExpenseJsonBuilder.Build();
         request.Date = DateTime.UtcNow.AddDays(1);
@@ -45,29 +45,29 @@ public class RegisterExpenseValidatorTests
         var result = validator.Validate(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals(ResourceErrorMessages.EXPENSES_CANNOT_FOR_THE_FUTURE3));
+        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals("Expenses cannot be for the future"));
     }
 
     [Fact]
     public void ErrorInvalidPaymentType()
-    { 
+    {
         var validator = new ExpenseValidator();
         var request = RequestRegisterExpenseJsonBuilder.Build();
-        request.PaymentType = (PaymentType) 700;
+        request.PaymentType = (PaymentType)700;
 
         var result = validator.Validate(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals(ResourceErrorMessages.PAYMENT_TYPE_INVALID));
+        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals("Invalid payment type"));
     }
-    
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(-2)]
     [InlineData(-7)]
     public void ErrorInvalidAmount(decimal amount)
-    { 
+    {
         var validator = new ExpenseValidator();
         var request = RequestRegisterExpenseJsonBuilder.Build();
         request.Amount = amount;
@@ -75,6 +75,19 @@ public class RegisterExpenseValidatorTests
         var result = validator.Validate(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals(ResourceErrorMessages.EXPENSES_MUST_BE_GREATER_THAN_ZERO));
+        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals("Expenses must be greater than 0"));
+    }
+
+    [Fact]
+    public void Error_Tag_Invalid()
+    {
+        var validator = new ExpenseValidator();
+        var request = RequestRegisterExpenseJsonBuilder.Build();
+        request.Tags.Add((Tag)1000);
+
+        var result = validator.Validate(request);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle().And.Contain(error => error.ErrorMessage.Equals("Tag not supported"));
     }
 }

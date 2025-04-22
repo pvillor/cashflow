@@ -1,7 +1,14 @@
 ﻿using CashFlow.Domain.Repositories;
 using CashFlow.Domain.Repositories.Expenses;
+using CashFlow.Domain.Repositories.Users;
+using CashFlow.Domain.Security.Cryptography;
+using CashFlow.Domain.Security.Tokens;
+using CashFlow.Domain.Services.LoggedUser;
 using CashFlow.Infrastructure.DataAccess;
 using CashFlow.Infrastructure.DataAccess.Repositories;
+using CashFlow.Infrastructure.Extensions;
+using CashFlow.Infrastructure.Security.Tokens;
+using CashFlow.Infrastructure.Services.LoggedUser;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,8 +19,24 @@ public static class DependencyInjectionExtension
 {
     public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        AddDbContext(services, configuration);
+        services.AddScoped<IPasswordEncrypter, Security.Cryptography.BCrypt>();
+        services.AddScoped<ILoggedUser, LoggedUser>();
+
+        AddToken(services, configuration);
         AddRepositories(services);
+
+        if (configuration.IsTestEnvironment() == false)
+        {
+            AddDbContext(services, configuration);
+        }
+    }
+
+    private static void AddToken(IServiceCollection services, IConfiguration configuration)
+    {
+        var expirationTimeMinutes = configuration.GetValue<uint>("Settings:Jwt:ExpiresMinutes");
+        var singingKey = configuration.GetValue<string>("Settings:Jwt:SigningKey");
+
+        services.AddScoped<IAccessTokenGenerator>(config => new JwtTokenGenerator(expirationTimeMinutes, singingKey!));
     }
 
     private static void AddRepositories(IServiceCollection services)
@@ -22,15 +45,17 @@ public static class DependencyInjectionExtension
         services.AddScoped<IExpensesReadOnlyRepository, ExpensesRepository>();
         services.AddScoped<IExpensesWriteOnlyRepository, ExpensesRepository>();
         services.AddScoped<IExpensesUpdateOnlyRepository, ExpensesRepository>();
+        services.AddScoped<IUserReadOnlyRepository, UsersRepository>();
+        services.AddScoped<IUserWriteOnlyRepository, UsersRepository>();
+        services.AddScoped<IUserUpdateOnlyRepository, UsersRepository>();
     }
 
     private static void AddDbContext(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("Connection");
 
-        var version = new Version(0, 0, 35);
-        //var serverVersion = new MySqlServerVersion(connectionString, version);
+        var serverVersion = ServerVersion.AutoDetect(connectionString);
 
-        services.AddDbContext<CashFlowDbContext>(config => config.UseMySql(connectionString, version));
+        services.AddDbContext<CashFlowDbContext>(config => config.UseMySql(connectionString, serverVersion));
     }
 }
